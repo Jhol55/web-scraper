@@ -72,6 +72,8 @@ def get_code_for_access_token():
 
         scraper.go_to('https://www.bling.com.br/login?r=https%3A%2F%2Fwww.bling.com.br%2Fcadastro.aplicativos.php%23%2Flist')
 
+        scraper.bypass_cloudflare()
+
         scraper \
             .visibility_of_element_located(delay=1) \
             .by_xpath('/html/body/div[2]/form/div/div[1]/div/div[1]/input') \
