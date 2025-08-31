@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libgbm1 \
     xdg-utils \
+    xvfb \
+    x11-utils \
+    x11-xserver-utils \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \

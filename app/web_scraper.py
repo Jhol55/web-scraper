@@ -67,7 +67,7 @@ class WebScraper:
 
                 self.display = Display(visible=True, size=(1920,1080), backend="xvfb", use_xauth=True)
                 self.display.start()
-                pyautogui._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
+                pyautogui._pyautogui_x11._display = Xlib.display.Display(self.display.new_display_var)
         
         default_kwargs.update(seleniumbase_kwargs)
         
