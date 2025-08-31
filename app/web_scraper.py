@@ -112,18 +112,18 @@ class WebScraper:
             return True
         except Exception as e:
             print(f"❌ Erro ao resolver captcha: {e}")
-            pass
+            return False
     
-    def bypass_cloudflare(self, timeout=30):
+    def bypass_cloudflare(self):
         """
         Bypassa proteção Cloudflare
         
         Args:
             timeout (int): Tempo limite para bypass
         """
-        print(f"☁️ Tentando bypass Cloudflare (timeout: {timeout}s)...")
+        print(f"☁️ Tentando bypass Cloudflare")
         try:
-            self.driver.uc_gui_click_captcha(timeout=timeout)
+            self.driver.uc_gui_click_captcha()
             print("✅ Cloudflare bypassado com sucesso!")
             return True
         except Exception as e:
