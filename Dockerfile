@@ -41,4 +41,4 @@ RUN pip install -r requirements.txt
 
 EXPOSE 5000
 
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & export DISPLAY=:99 && uvicorn api:app --host 0.0.0.0 --port 5000"]

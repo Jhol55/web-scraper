@@ -65,7 +65,7 @@ class WebScraper:
                     'disable_gpu': True,
                 })
 
-                self.display = Display(visible=True, size=(1920,1080), backend="xvfb", use_xauth=True)
+                self.display = Display(visible=0, size=(1920,1080))
                 self.display.start()
                 os.environ['DISPLAY'] = self.display.new_display_var
                 pyautogui._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
