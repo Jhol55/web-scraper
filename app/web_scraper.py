@@ -112,7 +112,7 @@ class WebScraper:
             return True
         except Exception as e:
             print(f"❌ Erro ao resolver captcha: {e}")
-            return False
+            pass
     
     def bypass_cloudflare(self, timeout=30):
         """
