@@ -9,7 +9,7 @@ from seleniumbase import Driver
 import time
 import os
 import platform
-from utils import retry_on_exception, retry_on_exception_and_not_result, get_chrome_path_windows
+from utils import retry_on_exception, retry_on_exception_and_not_result
 
 
 class WebScraper:
@@ -49,10 +49,8 @@ class WebScraper:
             })
         else:
             print(f"🖥️ Modo PRODUÇÃO")
-            binary_location = get_chrome_path_windows()
             default_kwargs.update({
                 'uc': True,   
-                'binary_location': binary_location,
             })
             if current_platform == 'Windows':
                 default_kwargs.update({
@@ -65,14 +63,6 @@ class WebScraper:
                     'window_size': '1920,1080',
                     'disable_gpu': True,
                 })
-
-                try:
-                    from xvfbwrapper import Xvfb
-                    self.vdisplay = Xvfb()
-                    self.vdisplay.start()
-                except ImportError:
-                    pass
-
         
         default_kwargs.update(seleniumbase_kwargs)
         
