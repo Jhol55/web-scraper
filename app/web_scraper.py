@@ -40,28 +40,23 @@ class WebScraper:
             'guest_mode': True,
             'no_sandbox': True,
             'disable_gpu': False,   
+            'headless': False
         }
         
         if env == 'dev':
             print(f"🛠️ Modo DESENVOLVIMENTO")
-            default_kwargs.update({
-                'headless': False,
+            default_kwargs.update({            
                 'window_size': '1366,768',  
             })
         else:
             print(f"🖥️ Modo PRODUÇÃO")
             default_kwargs.update({
                 'uc': True,   
+                'window_size': '1920,1080',             
             })
-            if current_platform == 'Windows':
+            
+            if current_platform != 'Windows':             
                 default_kwargs.update({
-                    'headless': False, 
-                    'window_size': '1920,1080',
-                })
-            else:
-                default_kwargs.update({
-                    'headless': True, 
-                    'window_size': '1920,1080',
                     'disable_gpu': True,
                 })
 
