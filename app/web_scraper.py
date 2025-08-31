@@ -9,7 +9,7 @@ from seleniumbase import Driver
 import time
 import os
 import platform
-from utils import retry_on_exception, retry_on_exception_and_not_result
+from .utils import retry_on_exception, retry_on_exception_and_not_result
 
 
 class WebScraper:
