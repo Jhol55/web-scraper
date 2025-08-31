@@ -5,7 +5,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from dotenv import load_dotenv
 from seleniumbase import Driver
-
+import pyautogui
+from pyvirtualdisplay.display import Display
+import Xlib.display
 import time
 import os
 import platform
@@ -22,8 +24,7 @@ class WebScraper:
             **seleniumbase_kwargs: Argumentos para o SeleniumBase Driver
         """
         print("🚀 Inicializando WebScraper...")
-
-        self.vdisplay = None
+        self.display = None
         
         BASEDIR = os.path.abspath(os.path.dirname(__file__))
         load_dotenv(os.path.join(BASEDIR, '../.env'))
@@ -63,6 +64,10 @@ class WebScraper:
                     'window_size': '1920,1080',
                     'disable_gpu': True,
                 })
+
+                self.display = Display(visible=True, size=(1920,1080), backend="xvfb", use_xauth=True)
+                self.display.start()
+                pyautogui._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
         
         default_kwargs.update(seleniumbase_kwargs)
         
@@ -134,8 +139,8 @@ class WebScraper:
         """Fecha o navegador."""
         print("🔄 Fechando WebScraper...")
         try:
-            if self.vdisplay:
-                self.vdisplay.stop()
+            if self.display:
+                self.display.stop()
             self.driver.quit()
             print("✅ WebScraper fechado com sucesso!")
         except Exception as e:
