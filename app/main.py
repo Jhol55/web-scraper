@@ -1,7 +1,9 @@
 import uvicorn
+import sys
 import os
 from dotenv import load_dotenv
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(BASEDIR, '../.env'))
@@ -10,8 +12,6 @@ load_dotenv(os.path.join(BASEDIR, '../.env'))
 if __name__ == '__main__':
     env = os.getenv("ENV")
     if (env == 'dev'):
-        uvicorn.run("api:api", host="127.0.0.1", port=8000, reload=True)
+        uvicorn.run("api:app", host="127.0.0.1", port=5000, reload=True)
     else:
-        # from waitress import serve
-        print("✅ Aplicação iniciada com sucesso!")
-        # serve(app, host="0.0.0.0", port=5000)
+        uvicorn.run("api:app", host="0.0.0.0", port=5000)

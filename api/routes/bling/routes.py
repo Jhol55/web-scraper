@@ -11,7 +11,7 @@ load_dotenv(os.path.join(BASEDIR, '../.env'))
 
 router = APIRouter()
 
-router.get("/get-code-for-access-token")
+@router.get("/get-code-for-access-token")
 def get_code_for_access_token():
     scraper = WebScraper()
     try:

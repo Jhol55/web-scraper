@@ -4,11 +4,11 @@ import importlib.util
 
 app = FastAPI()
 
-directory = os.path.dirname(__file__)
+directory = os.path.join(os.path.dirname(__file__), 'routes')
 ignore = ['__pycache__']
 
 folders = list(filter(lambda filename: os.path.isdir(os.path.join(directory, filename)) and filename not in ignore, os.listdir(directory)))
-        
+
 for folder in folders:
     folder_path = os.path.join(directory, folder)
     for filename in os.listdir(folder_path):
