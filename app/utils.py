@@ -1,44 +1,32 @@
 from functools import wraps
 import time
 
-def retry_on_exception(max_tries=2, wait_time=2):
+def retry():
+    """
+    Decorador para repetir a execução de um método em caso de exceção
+    ou resultado inválido (falsy).
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            tries = max_tries
+            tries = self.max_tries
+            check_result = self.check_result
+            wait_time = self.wait_time
+            last_exception = None
+
             while tries > 0:
                 try:
-                    return func(self, *args, **kwargs)
-                except:
-                    if not self.retry:
-                        break
-                    
-                    tries -= 1
-                    time.sleep(wait_time)
-                
-        return wrapper
-    return decorator
-
-def retry_on_exception_and_not_result(max_tries=2, wait_time=2):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            tries = max_tries
-            result = None
-
-            while tries > 0 and not result:
-                try:
                     result = func(self, *args, **kwargs)
-
-                    if not result:
-                        raise Exception()
-                except:
-                    if not self.retry:
-                        break
-
+                    if check_result and not result:
+                        raise ValueError("Resultado inválido (falsy)")
+                    return result
+                except Exception as e:
+                    last_exception = e
                     tries -= 1
-                    time.sleep(wait_time)
+                    if tries > 0:
+                        time.sleep(wait_time)
 
-            return result
+            raise last_exception
+
         return wrapper
     return decorator

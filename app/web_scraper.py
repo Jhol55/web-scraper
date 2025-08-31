@@ -11,7 +11,7 @@ import Xlib.display
 import time
 import os
 import platform
-from .utils import retry_on_exception, retry_on_exception_and_not_result
+from .utils import retry
 
 
 class WebScraper:
@@ -54,7 +54,7 @@ class WebScraper:
                 'uc': True,   
                 'window_size': '1920,1080',             
             })
-            
+
             if current_platform != 'Windows':             
                 default_kwargs.update({
                     'disable_gpu': True,
@@ -142,31 +142,33 @@ class WebScraper:
         except Exception as e:
             print(f"⚠️ Erro ao fechar WebScraper: {e}")
 
-    def visibility_of_element_located(self, timeout=5, delay=0, retry=True):
+    def visibility_of_element_located(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
         """Cria um localizador para um elemento visível."""
-        return Locators(self.driver, timeout, EC.visibility_of_element_located, delay, retry)
+        return Locators(self.driver, timeout, EC.visibility_of_element_located, delay, retry, max_tries, wait_time, check_result)
     
-    def invisibility_of_element_located(self, timeout=5, delay=0, retry=True):
+    def invisibility_of_element_located(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
         """Cria um localizador para um elemento invisível."""
-        return Locators(self.driver, timeout, EC.invisibility_of_element_located, delay, retry)
+        return Locators(self.driver, timeout, EC.invisibility_of_element_located, delay, retry, max_tries, wait_time, check_result)
     
-    def frame_to_be_available_and_switch_to_it(self, timeout=5, delay=0, retry=True):
+    def frame_to_be_available_and_switch_to_it(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
         """Cria um localizador para um frame."""
-        return Locators(self.driver, timeout, EC.frame_to_be_available_and_switch_to_it, delay, retry)
+        return Locators(self.driver, timeout, EC.frame_to_be_available_and_switch_to_it, delay, retry, max_tries, wait_time, check_result)
 
 
 class Locators:
-    def __init__(self, driver, timeout, expected_condition, delay, retry) -> None:
+    def __init__(self, driver, timeout, expected_condition, delay, retry, max_tries=2, wait_time=5, check_result=False) -> None:
         self.driver = driver
         self.timeout = timeout
         self.expected_condition = expected_condition
         self.delay = delay
         self.retry = retry
-        self.element = None
-        
+        self.max_tries = max_tries
+        self.wait_time = wait_time
+        self.check_result = check_result
+        self.element = None     
         self.web_driver_wait = WebDriverWait(driver, timeout)
 
-    @retry_on_exception_and_not_result()
+    @retry()
     def by_xpath(self, xpath):
         if self.delay > 0:
             print(f"⏱️ Aguardando {self.delay}s antes de localizar elemento...")
@@ -177,7 +179,7 @@ class Locators:
         print("✅ Elemento encontrado!")
         return Actions(element, self.driver, self.retry)
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def by_tag_name(self, tag_name):
         if self.delay > 0:
             time.sleep(self.delay)
@@ -187,7 +189,7 @@ class Locators:
         print("✅ Elemento encontrado!")
         return Actions(element, self.driver, self.retry)
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def by_css_selector(self, css_selector):
         if self.delay > 0:
             time.sleep(self.delay)
@@ -199,74 +201,76 @@ class Locators:
 
 
 class Actions:
-    def __init__(self, element, driver, retry=True) -> None:
+    def __init__(self, element, driver, retry=True, max_tries=2, wait_time=5, check_result=False) -> None:
         self.element = element
         self.driver = driver
         self.retry = retry
+        self.max_tries = max_tries
+        self.wait_time = wait_time
+        self.check_result = check_result
         self.action_chains = ActionChains(self.driver)
 
-    @retry_on_exception()
+    @retry()
     def remove(self):
         print("🗑️ Removendo elemento...")
         return self.driver.execute_script(f"""arguments[0].parentNode.removeChild(arguments[0]);""", self.element)
 
-    @retry_on_exception()
+    @retry()
     def send_keys(self, keys):
-        # Trunca a exibição de senhas/dados sensíveis
-        display_keys = keys if len(keys) < 20 else keys[:10] + "..." 
+        display_keys = keys[:4] + "..." 
         print(f"⌨️ Digitando: {display_keys}")
         return self.element.send_keys(keys)
     
-    @retry_on_exception()
+    @retry()
     def click(self):
         print("👆 Clicando no elemento...")      
         return self.element.click()
     
-    @retry_on_exception()
+    @retry()
     def double_click(self, x_offset=0, y_offset=0):
         print(f"👆👆 Duplo clique (offset: {x_offset}, {y_offset})...")
         self.action_chains.move_to_element(self.element)
         self.action_chains.move_by_offset(x_offset, y_offset)
         return self.action_chains.double_click().perform() 
         
-    @retry_on_exception()
+    @retry()
     def move(self):
         print("🖱️ Movendo para elemento...")
         return self.action_chains.move_to_element(self.element).perform()
     
-    @retry_on_exception()
+    @retry()
     def clear(self):
         print("🧹 Limpando campo...")
         return self.element.send_keys(Keys.CONTROL + 'a' + Keys.DELETE)
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def get_value_of_css_property(self, property):
         return self.element.value_of_css_property(property)
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def get_id(self):
         return self.element.get_attribute('id').rstrip().lstrip()
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def get_class(self):
         return self.element.get_attribute('class').rstrip().lstrip()
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def get_text(self):
         text = self.element.text.rstrip().lstrip()
         print(f"📄 Texto obtido: {text[:50]}...")
         return text
     
+    @retry()
     def get_attribute(self, attr):
         value = self.element.get_attribute(attr).rstrip().lstrip()
         print(f"🏷️ Atributo {attr}: {value[:50]}...")
         return value
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def get_value(self):
         value = self.element.get_property('value').rstrip().lstrip()
-        # Não exibe valores completos por segurança
-        display_value = value[:30] + "..." if len(value) > 30 else value
+        display_value = value[:len(value)] if len(value) < 10 else value[:10] + "..."
         print(f"💾 Valor obtido: {display_value}")
         return value
     
@@ -276,19 +280,22 @@ class Actions:
 
 
 class FindElements:
-    def __init__(self, element, driver, retry) -> None:
+    def __init__(self, element, driver, retry, max_tries=2, wait_time=5, check_result=False) -> None:
         self.element = element
         self.driver = driver
         self.retry = retry
+        self.max_tries = max_tries
+        self.wait_time = wait_time
+        self.check_result = check_result
 
-    @retry_on_exception_and_not_result()
+    @retry()
     def by_css_selector(self, css_selector):
         print(f"🔍 Buscando elementos filhos por CSS: {css_selector}")
         elements = self.element.find_elements(By.CSS_SELECTOR, css_selector)
         print(f"✅ Encontrados {len(elements)} elementos")
         return [Actions(element, self.driver, self.retry) for element in elements]
     
-    @retry_on_exception_and_not_result()
+    @retry()
     def by_tag_name(self, tag_name):
         print(f"🔍 Buscando elementos filhos por TAG: {tag_name}")
         elements = self.element.find_elements(By.TAG_NAME, tag_name)
