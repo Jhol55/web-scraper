@@ -27,7 +27,7 @@ def get_code_for_access_token():
         scraper.bypass_cloudflare()
 
         scraper \
-            .visibility_of_element_located(delay=1) \
+            .visibility_of_element_located(delay=10, timeout=30) \
             .by_xpath('/html/body/div[2]/form/div/div[1]/div/div[1]/input') \
             .send_keys(email) 
         
