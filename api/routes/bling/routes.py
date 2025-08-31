@@ -67,7 +67,6 @@ def get_code_for_access_token():
         
         return JSONResponse(content={'status': 'ok', 'message': 'Scraping executado com sucesso', 'data': {'code': code}})
     except Exception as e:
-        scraper.get_screenshot_as_file('screenshot.png')
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         scraper.quit()
