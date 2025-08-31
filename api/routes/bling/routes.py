@@ -27,7 +27,7 @@ def get_code_for_access_token():
         scraper.bypass_cloudflare()
 
         scraper \
-            .visibility_of_element_located(delay=10, timeout=30) \
+            .visibility_of_element_located(delay=1) \
             .by_xpath('/html/body/div[2]/form/div/div[1]/div/div[1]/input') \
             .send_keys(email) 
         
@@ -67,6 +67,7 @@ def get_code_for_access_token():
         
         return JSONResponse(content={'status': 'ok', 'message': 'Scraping executado com sucesso', 'data': {'code': code}})
     except Exception as e:
+        scraper.get_screenshot_as_file('screenshot.png')
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         scraper.quit()
