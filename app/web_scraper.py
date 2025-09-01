@@ -87,6 +87,32 @@ class WebScraper:
         print(f"✅ Página carregada: {current}")
         return current
 
+    def open_new_tab(self, url):
+        """
+        Abre uma nova aba no navegador, alterna para ela
+        e navega para a URL especificada.
+        
+        Args:
+            url (str): URL para abrir na nova aba
+        """
+        print("🆕 Abrindo nova aba...")
+        self.driver.open_new_tab(switch_to=True)
+        current = self.go_to(url)
+        print(f"✅ Nova aba aberta em: {current}")
+        return current
+
+    def close_current_tab(self):
+        """
+        Fecha a aba atual do navegador e retorna para a primeira aba.
+        """
+        print("❌ Fechando aba atual...")
+        self.driver.close()
+        if self.driver.window_handles:
+            self.driver.switch_to_window(0)
+            print("↩️ Retornado para a aba inicial")
+        else:
+            print("⚠️ Nenhuma aba restante após fechar a atual!")
+
     def current_url(self):
         """Retorna a URL atual do navegador."""
         return self.driver.current_url
