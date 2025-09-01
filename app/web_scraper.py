@@ -17,7 +17,7 @@ from .utils import retry
 class WebScraper:
     def __init__(self, **seleniumbase_kwargs):
         """
-        Inicializa o driver do SeleniumBase mantendo a lógica original.
+        Inicializa o driver do SeleniumBase.
         Otimizado para funcionar em Windows e Linux.
         
         Args:
@@ -118,9 +118,6 @@ class WebScraper:
     def bypass_cloudflare(self):
         """
         Bypassa proteção Cloudflare
-        
-        Args:
-            timeout (int): Tempo limite para bypass
         """
         print(f"☁️ Tentando bypass Cloudflare")
         try:
@@ -187,7 +184,7 @@ class Locators:
         print(f"🔍 Localizando elemento por TAG: {tag_name}")
         element = self.web_driver_wait.until(self.expected_condition((By.TAG_NAME, tag_name)))
         print("✅ Elemento encontrado!")
-        return Actions(element, self.driver, self.retry)
+        return Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
     
     @retry()
     def by_css_selector(self, css_selector):
@@ -197,7 +194,7 @@ class Locators:
         print(f"🔍 Localizando elemento por CSS: {css_selector}")
         element = self.web_driver_wait.until(self.expected_condition((By.CSS_SELECTOR, css_selector)))
         print("✅ Elemento encontrado!")
-        return Actions(element, self.driver, self.retry)
+        return Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
 
 
 class Actions:
@@ -276,7 +273,7 @@ class Actions:
     
     @property
     def find_elements(self):
-        return FindElements(self.element, self.driver, self.retry)
+        return FindElements(self.element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
 
 
 class FindElements:
@@ -290,14 +287,14 @@ class FindElements:
 
     @retry()
     def by_css_selector(self, css_selector):
-        print(f"🔍 Buscando elementos filhos por CSS: {css_selector}")
+        print(f"🔍 Buscando elementos por CSS: {css_selector}")
         elements = self.element.find_elements(By.CSS_SELECTOR, css_selector)
         print(f"✅ Encontrados {len(elements)} elementos")
-        return [Actions(element, self.driver, self.retry) for element in elements]
+        return [Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result) for element in elements]
     
     @retry()
     def by_tag_name(self, tag_name):
-        print(f"🔍 Buscando elementos filhos por TAG: {tag_name}")
+        print(f"🔍 Buscando elementos por TAG: {tag_name}")
         elements = self.element.find_elements(By.TAG_NAME, tag_name)
         print(f"✅ Encontrados {len(elements)} elementos")
-        return [Actions(element, self.driver, self.retry) for element in elements]
+        return [Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result) for element in elements]
