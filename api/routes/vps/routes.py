@@ -54,5 +54,3 @@ async def reset_baserow_db():
         return JSONResponse(content={'status': 'ok', 'message': 'Scraping executado com sucesso'})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        scraper.quit()

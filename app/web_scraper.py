@@ -1,265 +1,277 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.wait import WebDriverWait
-from dotenv import load_dotenv
-from seleniumbase import Driver
-import pyautogui
-from pyvirtualdisplay.display import Display
-import Xlib.display
+from rich.pretty import pprint
 import time
 import os
 import platform
+import Xlib.display
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
+from seleniumbase import SB
+from pyvirtualdisplay.display import Display
+from dotenv import load_dotenv
 from .utils import retry
 
+
+def get_chrome_path_windows():
+    import winreg
+    try:
+        reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
+        chrome_path, _ = winreg.QueryValueEx(key, None)
+        return chrome_path
+    except FileNotFoundError:
+        return None
 
 class WebScraper:
     def __init__(self, **seleniumbase_kwargs):
         """
-        Inicializa o driver do SeleniumBase.
-        Otimizado para funcionar em Windows e Linux.
-        
-        Args:
-            **seleniumbase_kwargs: Argumentos para o SeleniumBase Driver
+        Prepara a configuração para o WebScraper.
+        O driver SB será inicializado ao entrar no contexto 'with'.
         """
-        print("🚀 Inicializando WebScraper...")
+        print("🚀 Configurando WebScraper...")
         self.display = None
-        
+        self.sb = None
+        self.sb_context = None 
+  
         BASEDIR = os.path.abspath(os.path.dirname(__file__))
         load_dotenv(os.path.join(BASEDIR, '../.env'))
         
         env = os.getenv("ENV", "prod")
-        current_platform = platform.system()
+        self.current_platform = platform.system()
         
         print(f"🔍 ENV: '{env}'")
-        print(f"💻 Sistema: {current_platform}")
+        print(f"💻 Sistema: {self.current_platform}")
     
-        default_kwargs = {
+        self.sb_kwargs = {
             'incognito': True,
             'guest_mode': True,
-            'no_sandbox': True,
-            'disable_gpu': False,   
-            'headless': False
+            'headless': False,
         }
         
         if env == 'dev':
-            print(f"🛠️ Modo DESENVOLVIMENTO")
-            default_kwargs.update({            
-                'window_size': '1366,768',  
+            print("🛠️ Modo DESENVOLVIMENTO")
+            self.sb_kwargs.update({
+                'window_size': '1366,768'
             })
         else:
-            print(f"🖥️ Modo PRODUÇÃO")
-            default_kwargs.update({
-                'uc': True,   
-                'window_size': '1920,1080',             
+            print("🖥️ Modo PRODUÇÃO")
+            self.sb_kwargs.update({
+                'uc': True,
+                'undetectable': True,
+                'uc_cdp_events': True,
+                'window_size': '1920,1080',
             })
 
-            if current_platform != 'Windows':             
-                default_kwargs.update({
-                    'disable_gpu': True,
-                })
+            if self.current_platform == "Windows":
+                chrome_path = get_chrome_path_windows()
+                if chrome_path:
+                    self.sb_kwargs['binary_location'] = chrome_path
+        
+        self.sb_kwargs.update(seleniumbase_kwargs)
 
-                self.display = Display(visible=0, size=(1920,1080))
-                self.display.start()
-                os.environ['DISPLAY'] = self.display.new_display_var
-                pyautogui._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
-        
-        default_kwargs.update(seleniumbase_kwargs)
-        
-        print(f"🔧 Configurações SeleniumBase:")
-        for key, value in default_kwargs.items():
+    def __enter__(self):
+        """
+        Inicializa o driver SB e o display virtual (se Linux)
+        ao entrar no bloco 'with'.
+        """
+        if self.current_platform == 'Linux' and not self.sb_kwargs.get('headless'):
+            print("🖥️ Iniciando display virtual para Linux...")
+            self.display = Display(visible=0, size=(1920, 1080))
+            self.display.start()
+
+        print("🔧 Configurações SeleniumBase:")
+        for key, value in self.sb_kwargs.items():
             print(f"   {key}: {value}")
-        
+
         try:
-            print("⏳ Inicializando driver SeleniumBase...")
-            self.driver = Driver(**default_kwargs)
-            print("✅ Driver inicializado com sucesso!")
+            print("⏳ Inicializando driver SB...")
+            self.sb_context = SB(**self.sb_kwargs)
+            self.sb = self.sb_context.__enter__()                  
+            print("✅ Driver SB inicializado com sucesso!")
+            return self
         except Exception as e:
-            print(f"❌ Erro ao inicializar driver: {e}")
+            print(f"❌ Erro ao inicializar driver SB: {e}")
+            if self.display:
+                self.display.stop()
             raise
 
-    def go_to(self, url):
-        """Navega para uma URL e espera que a página carregue."""
-        print(f"🌐 Navegando para: {url}")
-        self.driver.get(url)
-        current = self.driver.current_url
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Fecha o driver SB e o display virtual (se aplicável)
+        ao sair do bloco 'with'.
+        """
+        print("🔄 Fechando WebScraper...")
+        
+        if hasattr(self, 'sb_context') and self.sb_context:
+            try:
+                self.sb_context.__exit__(exc_type, exc_val, exc_tb)
+                print("✅ SB fechado com sucesso!")
+            except Exception as e:
+                print(f"⚠️ Erro ao fechar SB: {e}")
+        
+        if self.display:
+            try:
+                self.display.stop()
+                print("✅ Display virtual fechado!")
+            except Exception as e:
+                print(f"⚠️ Erro ao fechar display: {e}")
+        
+        print("✅ WebScraper fechado com sucesso!")
+
+    def go_to(self, url, reconnect_time=5):
+        print(f"🌐 Navegando para: {url}") 
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            print(f"🔗 URL corrigida para: {url}")
+        self.sb.uc_open_with_reconnect(url, reconnect_time)
+        current = self.sb.get_current_url()
         print(f"✅ Página carregada: {current}")
         return current
-
+    
+    def current_url(self):
+        return self.sb.get_current_url()
+    
+    def sleep(self, secs):
+        return time.sleep(secs)
+    
     def open_new_tab(self, url):
-        """
-        Abre uma nova aba no navegador, alterna para ela
-        e navega para a URL especificada.
-        
-        Args:
-            url (str): URL para abrir na nova aba
-        """
         print("🆕 Abrindo nova aba...")
-        self.driver.open_new_tab(switch_to=True)
+        self.sb.open_new_window()
         current = self.go_to(url)
         print(f"✅ Nova aba aberta em: {current}")
         return current
 
-    def close_current_tab(self):
-        """
-        Fecha a aba atual do navegador e retorna para a primeira aba.
-        """
-        print("❌ Fechando aba atual...")
-        self.driver.close()
-        if self.driver.window_handles:
-            self.driver.switch_to_window(0)
-            print("↩️ Retornado para a aba inicial")
-        else:
-            print("⚠️ Nenhuma aba restante após fechar a atual!")
-
-    def current_url(self):
-        """Retorna a URL atual do navegador."""
-        return self.driver.current_url
-    
-    def get_screenshot_as_file(self, path):
-        """Tira um screenshot e salva em um arquivo."""
-        print(f"📸 Salvando screenshot: {path}")
-        return self.driver.get_screenshot_as_file(path)
-    
-    def solve_captcha(self, timeout=30):
-        """
-        Resolve captchas automaticamente usando SeleniumBase
-        
-        Args:
-            timeout (int): Tempo limite para resolver o captcha
-            
-        Returns:
-            bool: True se o captcha foi resolvido, False caso contrário
-        """
-        print(f"🤖 Tentando resolver captcha (timeout: {timeout}s)...")
+    def solve_captcha(self):
+        print("🤖 Tentando resolver captcha...")
         try:
-            self.driver.uc_gui_click_captcha(timeout=timeout)
+            self.sb.uc_gui_click_captcha()
+            self.sb.uc_gui_handle_captcha()
             print("✅ Captcha resolvido com sucesso!")
             return True
         except Exception as e:
             print(f"❌ Erro ao resolver captcha: {e}")
             return False
-    
-    def bypass_cloudflare(self):
-        """
-        Bypassa proteção Cloudflare
-        """
-        print(f"☁️ Tentando bypass Cloudflare")
-        try:
-            self.driver.uc_gui_click_captcha()
-            print("✅ Cloudflare bypassado com sucesso!")
-            return True
-        except Exception as e:
-            print(f"❌ Erro ao fazer bypass do Cloudflare: {e}")
-            return False
-        
-    def quit(self):
-        """Fecha o navegador."""
-        print("🔄 Fechando WebScraper...")
-        try:
-            if self.display:
-                self.display.stop()
-            self.driver.quit()
-            print("✅ WebScraper fechado com sucesso!")
-        except Exception as e:
-            print(f"⚠️ Erro ao fechar WebScraper: {e}")
-
-    def visibility_of_element_located(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
+             
+    def visibility_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
         """Cria um localizador para um elemento visível."""
-        return Locators(self.driver, timeout, EC.visibility_of_element_located, delay, retry, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.visibility_of_element_located, delay, max_tries, wait_time, check_result)
     
-    def invisibility_of_element_located(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
+    def invisibility_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
         """Cria um localizador para um elemento invisível."""
-        return Locators(self.driver, timeout, EC.invisibility_of_element_located, delay, retry, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.invisibility_of_element_located, delay, max_tries, wait_time, check_result)
     
-    def frame_to_be_available_and_switch_to_it(self, timeout=5, delay=0, retry=True, max_tries=2, wait_time=5, check_result=False):
-        """Cria um localizador para um frame."""
-        return Locators(self.driver, timeout, EC.frame_to_be_available_and_switch_to_it, delay, retry, max_tries, wait_time, check_result)
+    def presence_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+        """Cria um localizador para um elemento que deve estar presente no DOM e visível na página."""
+        return Locators(self.sb, timeout, EC.presence_of_element_located, delay, max_tries, wait_time, check_result)
+    
+    def element_to_be_clickable(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+        """Cria um localizador para um elemento que deve estar visível e habilitado para clique na página."""
+        return Locators(self.sb, timeout, EC.element_to_be_clickable, delay, max_tries, wait_time, check_result)
 
+    def frame_to_be_available_and_switch_to_it(self, timeout=10, delay=0, max_tries=2, wait_time=5, check_result=False):
+        return Locators(self.sb, timeout, EC.frame_to_be_available_and_switch_to_it, delay, max_tries, wait_time, check_result)
 
 class Locators:
-    def __init__(self, driver, timeout, expected_condition, delay, retry, max_tries=2, wait_time=5, check_result=False) -> None:
-        self.driver = driver
+    def __init__(self, sb, timeout, wait_method, delay, max_tries, wait_time, check_result) -> None:
+        self.sb = sb
         self.timeout = timeout
-        self.expected_condition = expected_condition
+        self.wait_method = wait_method
         self.delay = delay
-        self.retry = retry
         self.max_tries = max_tries
         self.wait_time = wait_time
         self.check_result = check_result
-        self.element = None     
-        self.web_driver_wait = WebDriverWait(driver, timeout)
 
-    @retry()
-    def by_xpath(self, xpath):
+    def _find_element(self, selector, by):
         if self.delay > 0:
             print(f"⏱️ Aguardando {self.delay}s antes de localizar elemento...")
             time.sleep(self.delay)
         
-        print(f"🔍 Localizando elemento por XPATH: {xpath[:50]}...")
-        element = self.web_driver_wait.until(self.expected_condition((By.XPATH, xpath)))
-        print("✅ Elemento encontrado!")
-        return Actions(element, self.driver, self.retry)
-    
-    @retry()
-    def by_tag_name(self, tag_name):
-        if self.delay > 0:
-            time.sleep(self.delay)
+        print(f"🔍 Localizando elemento: {selector[:70]}...")
         
-        print(f"🔍 Localizando elemento por TAG: {tag_name}")
-        element = self.web_driver_wait.until(self.expected_condition((By.TAG_NAME, tag_name)))
-        print("✅ Elemento encontrado!")
-        return Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
-    
-    @retry()
-    def by_css_selector(self, css_selector):
-        if self.delay > 0:
-            time.sleep(self.delay)
-        
-        print(f"🔍 Localizando elemento por CSS: {css_selector}")
-        element = self.web_driver_wait.until(self.expected_condition((By.CSS_SELECTOR, css_selector)))
-        print("✅ Elemento encontrado!")
-        return Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
+        try:
+            wait = WebDriverWait(self.sb.driver, self.timeout)
+            element = wait.until(self.wait_method((by, selector)))
+            
+            print("✅ Elemento encontrado!")
+            return Actions(element, self.sb, self.max_tries, self.wait_time, self.check_result, selector, by)
+            
+        except TimeoutException:
+            print(f"❌ Tempo limite excedido. Elemento não encontrado após {self.timeout}s.")
+            raise
+        except Exception as e:
+            print(f"❌ Erro ao localizar elemento: {e}")
+            raise
 
+    def by_xpath(self, xpath):
+        return self._find_element(xpath, By.XPATH)
+
+    def by_tag_name(self, tag_name):
+        return self._find_element(tag_name, By.TAG_NAME)
+    
+    def by_css_selector(self, css_selector):
+        return self._find_element(css_selector, By.CSS_SELECTOR)
 
 class Actions:
-    def __init__(self, element, driver, retry=True, max_tries=2, wait_time=5, check_result=False) -> None:
+    def __init__(self, element, sb, max_tries, wait_time, check_result, selector=None, by=By.CSS_SELECTOR) -> None:
         self.element = element
-        self.driver = driver
-        self.retry = retry
+        self.sb = sb
         self.max_tries = max_tries
         self.wait_time = wait_time
         self.check_result = check_result
-        self.action_chains = ActionChains(self.driver)
+        self.selector = selector
+        self.by = by
+        self.action_chains = ActionChains(self.sb.driver)
+
+    @retry()
+    def scroll_to_view(self):
+        """Rola a página para que o elemento fique visível."""
+        print("🔄 Rolando para o elemento...")
+        self.sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", self.element)
+        return self
 
     @retry()
     def remove(self):
         print("🗑️ Removendo elemento...")
-        return self.driver.execute_script(f"""arguments[0].parentNode.removeChild(arguments[0]);""", self.element)
+        if self.element:
+            return self.sb.execute_script("arguments[0].remove();", self.element)
+        elif self.selector:
+            return self.sb.execute_script(f"document.querySelector('{self.selector}').remove();")
 
     @retry()
     def send_keys(self, keys):
-        display_keys = keys[:4] + "..." 
+        display_keys = keys if len(keys) < 20 else keys[:20] + "..."
         print(f"⌨️ Digitando: {display_keys}")
-        return self.element.send_keys(keys)
+        if self.selector:
+            return self.sb.type(self.selector, keys, by=self.by)
+        else:
+            return self.sb.type(self.element, keys)
     
     @retry()
     def click(self):
-        print("👆 Clicando no elemento...")      
-        return self.element.click()
-    
+        print("👆 Clicando no elemento...")
+        try:
+            if self.selector:
+                return self.sb.click(self.selector, by=self.by)
+            else:
+                return self.element.click()
+        except Exception as e:
+            print(f"⚠️ Erro ao clicar com SeleniumBase: {e}")
+            if self.element:
+                print("🔄 Tentando rolar para o elemento e clicar via JS...")
+                self.sb.execute_script("arguments[0].scrollIntoView({block: 'center'});", self.element)
+                self.sb.execute_script("arguments[0].click();", self.element)
+                return
+            raise
+
     @retry()
     def double_click(self, x_offset=0, y_offset=0):
         print(f"👆👆 Duplo clique (offset: {x_offset}, {y_offset})...")
         self.action_chains.move_to_element(self.element)
         self.action_chains.move_by_offset(x_offset, y_offset)
         return self.action_chains.double_click().perform() 
-        
-    @retry()
-    def move(self):
-        print("🖱️ Movendo para elemento...")
-        return self.action_chains.move_to_element(self.element).perform()
     
     @retry()
     def clear(self):
@@ -267,46 +279,63 @@ class Actions:
         return self.element.send_keys(Keys.CONTROL + 'a' + Keys.DELETE)
     
     @retry()
-    def get_value_of_css_property(self, property):
-        return self.element.value_of_css_property(property)
-    
-    @retry()
-    def get_id(self):
-        return self.element.get_attribute('id').rstrip().lstrip()
-    
-    @retry()
-    def get_class(self):
-        return self.element.get_attribute('class').rstrip().lstrip()
-    
-    @retry()
     def get_text(self):
-        text = self.element.text.rstrip().lstrip()
-        print(f"📄 Texto obtido: {text[:50]}...")
+        if self.element:
+            text = self.element.text.strip()
+        elif self.selector:
+            text = self.sb.get_text(self.selector, by=self.by).strip()
+        else:
+            text = ""
+        
+        print(f"📄 Texto obtido: {text[:70]}...")
         return text
     
     @retry()
     def get_attribute(self, attr):
-        value = self.element.get_attribute(attr).rstrip().lstrip()
-        print(f"🏷️ Atributo {attr}: {value[:50]}...")
-        return value
+        if self.element:
+            value = self.element.get_attribute(attr)
+        elif self.selector:
+            value = self.sb.get_attribute(self.selector, attr, by=self.by)
+        else:
+            value = ""
+
+        print("value: ", value)
+        
+        if value:
+            value = value.strip()
+            print(f"🏷️ Atributo '{attr}': {value[:70]}...")
+        else:
+            print(f"🏷️ Atributo '{attr}': (vazio)")
+            
+        return value or ""
     
     @retry()
     def get_value(self):
-        value = self.element.get_property('value').rstrip().lstrip()
-        display_value = value[:len(value)] if len(value) < 10 else value[:10] + "..."
+        print("💾 Obtendo valor do elemento...")
+        value = ""
+
+        try:
+            if self.element:
+                value = self.element.get_property("value") or ""
+            elif self.selector:
+                value = self.sb.get_value(self.selector, by=self.by) or ""
+        except Exception as e:
+            print(f"⚠️ Erro ao obter valor: {e}")
+            value = ""
+
+        value = value.strip()
+        display_value = value if len(value) < 10 else value[:10] + "..."
         print(f"💾 Valor obtido: {display_value}")
         return value
     
     @property
     def find_elements(self):
-        return FindElements(self.element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result)
-
-
-class FindElements:
-    def __init__(self, element, driver, retry, max_tries=2, wait_time=5, check_result=False) -> None:
+        return ListActions(self.element, self.sb, self.max_tries, self.wait_time, self.check_result)
+    
+class ListActions:
+    def __init__(self, element, sb, max_tries=2, wait_time=5, check_result=False):
         self.element = element
-        self.driver = driver
-        self.retry = retry
+        self.sb = sb
         self.max_tries = max_tries
         self.wait_time = wait_time
         self.check_result = check_result
@@ -316,11 +345,19 @@ class FindElements:
         print(f"🔍 Buscando elementos por CSS: {css_selector}")
         elements = self.element.find_elements(By.CSS_SELECTOR, css_selector)
         print(f"✅ Encontrados {len(elements)} elementos")
-        return [Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result) for element in elements]
-    
+        return [
+            Actions(el, self.sb, self.max_tries, self.wait_time, self.check_result)
+            for el in elements
+        ]
+
     @retry()
     def by_tag_name(self, tag_name):
         print(f"🔍 Buscando elementos por TAG: {tag_name}")
         elements = self.element.find_elements(By.TAG_NAME, tag_name)
         print(f"✅ Encontrados {len(elements)} elementos")
-        return [Actions(element, self.driver, self.retry, self.max_tries, self.wait_time, self.check_result) for element in elements]
+        return [
+            Actions(el, self.sb, self.max_tries, self.wait_time, self.check_result)
+            for el in elements
+        ]
+
+
