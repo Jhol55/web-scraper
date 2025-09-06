@@ -36,6 +36,7 @@ WORKDIR /app
 
 COPY app/ /app/app/
 COPY api/ /app/api/
+COPY services/ /app/services/
 COPY requirements.txt .
 
 RUN pip install --upgrade pip
