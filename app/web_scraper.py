@@ -2,7 +2,6 @@ from rich.pretty import pprint
 import time
 import os
 import platform
-import Xlib.display
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
@@ -26,7 +25,7 @@ def get_chrome_path_windows():
         return None
 
 class WebScraper:
-    def __init__(self, **seleniumbase_kwargs):
+    def __init__(self, user_data_dir=None, **seleniumbase_kwargs):
         """
         Prepara a configuração para o WebScraper.
         O driver SB será inicializado ao entrar no contexto 'with'.
@@ -35,6 +34,7 @@ class WebScraper:
         self.display = None
         self.sb = None
         self.sb_context = None 
+        self.sb_kwargs = {}
   
         BASEDIR = os.path.abspath(os.path.dirname(__file__))
         load_dotenv(os.path.join(BASEDIR, '../.env'))
@@ -44,16 +44,25 @@ class WebScraper:
         
         print(f"🔍 ENV: '{env}'")
         print(f"💻 Sistema: {self.current_platform}")
-    
-        self.sb_kwargs = {
-            'incognito': True,
-            'guest_mode': True,
-            'headless': False,
-        }
+
+        if user_data_dir:
+            base_user_data_dir = os.path.join(BASEDIR, "user_data_dir")
+            os.makedirs(base_user_data_dir, exist_ok=True)
+
+            full_path = os.path.join(base_user_data_dir, user_data_dir)
+            os.makedirs(full_path, exist_ok=True)
+            
+            print(f"👤 Usando perfil do Chrome em: {full_path}")
+            self.sb_kwargs.update({
+                'user_data_dir': full_path
+            })
         
         if env == 'dev':
             print("🛠️ Modo DESENVOLVIMENTO")
             self.sb_kwargs.update({
+                'incognito': False,
+                'guest_mode': False,
+                'headless': False,
                 'window_size': '1366,768'
             })
         else:
@@ -62,13 +71,17 @@ class WebScraper:
                 'uc': True,
                 'undetectable': True,
                 'uc_cdp_events': True,
+                'incognito': False,
+                'guest_mode': False,
                 'window_size': '1920,1080',
             })
 
             if self.current_platform == "Windows":
                 chrome_path = get_chrome_path_windows()
                 if chrome_path:
-                    self.sb_kwargs['binary_location'] = chrome_path
+                    self.sb_kwargs.update({
+                        'binary_location': chrome_path
+                    })
         
         self.sb_kwargs.update(seleniumbase_kwargs)
 
