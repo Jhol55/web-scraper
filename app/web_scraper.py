@@ -1,4 +1,3 @@
-from rich.pretty import pprint
 import time
 import os
 import platform
@@ -11,18 +10,8 @@ from selenium.common.exceptions import TimeoutException
 from seleniumbase import SB
 from pyvirtualdisplay.display import Display
 from dotenv import load_dotenv
-from .utils import retry
+from .utils import retry, get_chrome_path_windows
 
-
-def get_chrome_path_windows():
-    import winreg
-    try:
-        reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
-        chrome_path, _ = winreg.QueryValueEx(key, None)
-        return chrome_path
-    except FileNotFoundError:
-        return None
 
 class WebScraper:
     def __init__(self, user_data_dir=None, **seleniumbase_kwargs):
