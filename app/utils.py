@@ -3,27 +3,28 @@ import time
 
 def retry():
     """
-    Decorador para repetir a execução de um método em caso de exceção
-    ou resultado inválido (falsy).
+    ✨ Decorator to retry a function's execution in case of an exception.
+
+    Args:
+        max_retries (int): The maximum number of attempts before failing.
+        wait_time (int): The waiting time in seconds between attempts.
     """
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            tries = self.max_tries
-            check_result = self.check_result
+            max_retries = self.max_retries
             wait_time = self.wait_time
             last_exception = None
 
-            while tries > 0:
+            for attempt in range(max_retries):
                 try:
                     result = func(self, *args, **kwargs)
-                    if check_result and not result:
-                        raise ValueError("Resultado inválido (falsy)")
                     return result
                 except Exception as e:
                     last_exception = e
-                    tries -= 1
-                    if tries > 0:
+                    print(f"❌ Tentativa {attempt + 1}/{max_retries} erro: {e}")
+                    
+                    if attempt < max_retries - 1:
                         time.sleep(wait_time)
 
             raise last_exception

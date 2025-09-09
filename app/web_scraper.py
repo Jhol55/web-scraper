@@ -168,34 +168,33 @@ class WebScraper:
             print(f"❌ Erro ao resolver captcha: {e}")
             return False
              
-    def visibility_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+    def visibility_of_element_located(self, timeout=5, delay=0, max_retries=2, wait_time=5):
         """Cria um localizador para um elemento visível."""
-        return Locators(self.sb, timeout, EC.visibility_of_element_located, delay, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.visibility_of_element_located, delay, max_retries, wait_time)
     
-    def invisibility_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+    def invisibility_of_element_located(self, timeout=5, delay=0, max_retries=2, wait_time=5):
         """Cria um localizador para um elemento invisível."""
-        return Locators(self.sb, timeout, EC.invisibility_of_element_located, delay, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.invisibility_of_element_located, delay, max_retries, wait_time)
     
-    def presence_of_element_located(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+    def presence_of_element_located(self, timeout=5, delay=0, max_retries=2, wait_time=5):
         """Cria um localizador para um elemento que deve estar presente no DOM e visível na página."""
-        return Locators(self.sb, timeout, EC.presence_of_element_located, delay, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.presence_of_element_located, delay, max_retries, wait_time)
     
-    def element_to_be_clickable(self, timeout=5, delay=0, max_tries=2, wait_time=5, check_result=False):
+    def element_to_be_clickable(self, timeout=5, delay=0, max_retries=2, wait_time=5):
         """Cria um localizador para um elemento que deve estar visível e habilitado para clique na página."""
-        return Locators(self.sb, timeout, EC.element_to_be_clickable, delay, max_tries, wait_time, check_result)
+        return Locators(self.sb, timeout, EC.element_to_be_clickable, delay, max_retries, wait_time)
 
-    def frame_to_be_available_and_switch_to_it(self, timeout=10, delay=0, max_tries=2, wait_time=5, check_result=False):
-        return Locators(self.sb, timeout, EC.frame_to_be_available_and_switch_to_it, delay, max_tries, wait_time, check_result)
+    def frame_to_be_available_and_switch_to_it(self, timeout=10, delay=0, max_retries=2, wait_time=5):
+        return Locators(self.sb, timeout, EC.frame_to_be_available_and_switch_to_it, delay, max_retries, wait_time)
 
 class Locators:
-    def __init__(self, sb, timeout, wait_method, delay, max_tries, wait_time, check_result) -> None:
+    def __init__(self, sb, timeout, wait_method, delay, max_retries, wait_time) -> None:
         self.sb = sb
         self.timeout = timeout
         self.wait_method = wait_method
         self.delay = delay
-        self.max_tries = max_tries
+        self.max_retries = max_retries
         self.wait_time = wait_time
-        self.check_result = check_result
 
     def _find_element(self, selector, by):
         if self.delay > 0:
@@ -209,7 +208,7 @@ class Locators:
             element = wait.until(self.wait_method((by, selector)))
             
             print("✅ Elemento encontrado!")
-            return Actions(element, self.sb, self.max_tries, self.wait_time, self.check_result, selector, by)
+            return Actions(element, self.sb, self.max_retries, self.wait_time, selector, by)
             
         except TimeoutException:
             print(f"❌ Tempo limite excedido. Elemento não encontrado após {self.timeout}s.")
@@ -228,12 +227,11 @@ class Locators:
         return self._find_element(css_selector, By.CSS_SELECTOR)
 
 class Actions:
-    def __init__(self, element, sb, max_tries, wait_time, check_result, selector=None, by=By.CSS_SELECTOR) -> None:
+    def __init__(self, element, sb, max_retries, wait_time, selector=None, by=By.CSS_SELECTOR) -> None:
         self.element = element
         self.sb = sb
-        self.max_tries = max_tries
+        self.max_retries = max_retries
         self.wait_time = wait_time
-        self.check_result = check_result
         self.selector = selector
         self.by = by
         self.action_chains = ActionChains(self.sb.driver)
@@ -343,15 +341,14 @@ class Actions:
     
     @property
     def find_elements(self):
-        return ListActions(self.element, self.sb, self.max_tries, self.wait_time, self.check_result)
+        return ListActions(self.element, self.sb, self.max_retries, self.wait_time)
     
 class ListActions:
-    def __init__(self, element, sb, max_tries=2, wait_time=5, check_result=False):
+    def __init__(self, element, sb, max_retries=2, wait_time=5):
         self.element = element
         self.sb = sb
-        self.max_tries = max_tries
+        self.max_retries = max_retries
         self.wait_time = wait_time
-        self.check_result = check_result
 
     @retry()
     def by_css_selector(self, css_selector):
@@ -359,7 +356,7 @@ class ListActions:
         elements = self.element.find_elements(By.CSS_SELECTOR, css_selector)
         print(f"✅ Encontrados {len(elements)} elementos")
         return [
-            Actions(el, self.sb, self.max_tries, self.wait_time, self.check_result)
+            Actions(el, self.sb, self.max_retries, self.wait_time)
             for el in elements
         ]
 
@@ -369,7 +366,7 @@ class ListActions:
         elements = self.element.find_elements(By.TAG_NAME, tag_name)
         print(f"✅ Encontrados {len(elements)} elementos")
         return [
-            Actions(el, self.sb, self.max_tries, self.wait_time, self.check_result)
+            Actions(el, self.sb, self.max_retries, self.wait_time)
             for el in elements
         ]
 
