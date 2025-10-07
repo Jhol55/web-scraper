@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import time
 import re
 from services.gmail.gmail import get_emails, authenticate_gmail
-# Invoke-RestMethod -Uri "http://127.0.0.1:5000/format-table" -Method Get
+# Invoke-RestMethod -Uri "http://127.0.0.1:5000/format-table?target_row=335" -Method Get
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(BASEDIR, '../.env'))
@@ -45,8 +45,8 @@ async def test(target_row: int = Query(None)):
 
                 scraper.visibility_of_element_located().by_xpath('/html/body/div[2]/div[1]/div[2]/c-wiz/main/div[2]/div/div/div/form/span/section[2]/div/div/div[1]/div[1]/div/div/div/div/div[1]/div/div[1]/input').send_keys(gmail_password)
                 scraper.element_to_be_clickable().by_xpath('/html/body/div[2]/div[1]/div[2]/c-wiz/main/div[3]/div/div[1]/div/div/button').click()
-
-            scraper.element_to_be_clickable().by_xpath('/html/body/div[4]/div/div[2]/div/div[5]/div[1]/div/div[2]/div[2]/div[9]/div/div/div/div[3]/div/div[4]').click()
+            
+            scraper.element_to_be_clickable().by_xpath('//div[@class="waffle-namedtable-gridpill-table-menu-button-wrapper"]').click() # /html/body/div[4]/div/div[2]/div/div[5]/div[1]/div/div[2]/div[2]/div[9]/div/div/div/div[3]/div/div[4]
             scraper.visibility_of_element_located(delay=2).by_xpath('//span[@class="goog-menuitem-label" and text()="Ajustar o intervalo da tabela"]').click()
 
             interval_input = scraper.visibility_of_element_located().by_xpath('//input[@aria-label="Intervalo"]')
